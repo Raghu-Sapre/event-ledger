@@ -22,12 +22,14 @@
         <java.version>25</java.version>
         <resilience4j-spring-boot3.version>2.2.0</resilience4j-spring-boot3.version>
         <lombok.version>1.18.46</lombok.version>
+        <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
+        <maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
     </properties>
 
     <!-- Multi-module structure -->
     <modules>
-        <module>gateway-service</module>
         <module>account-service</module>
+        <module>gateway-service</module>
     </modules>
 
     <!-- Dependency Management for children -->
@@ -48,6 +50,11 @@
                 <version>${lombok.version}</version>
                 <optional>true</optional>
             </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>2.5.0</version>
+            </dependency>
 
         </dependencies>
     </dependencyManagement>
@@ -67,14 +74,14 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.2.5</version>
+                    <version>${maven-surefire-plugin.version}</version>
                 </plugin>
 
                 <!-- Failsafe for integration tests -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
-                    <version>3.2.5</version>
+                    <version>${maven-failsafe-plugin.version}</version>
                 </plugin>
 
             </plugins>
