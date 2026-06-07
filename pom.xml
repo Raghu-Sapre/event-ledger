@@ -21,6 +21,7 @@
     <properties>
         <java.version>25</java.version>
         <resilience4j-spring-boot3.version>2.2.0</resilience4j-spring-boot3.version>
+        <lombok.version>1.18.46</lombok.version>
     </properties>
 
     <!-- Multi-module structure -->
@@ -44,6 +45,7 @@
             <dependency>
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
                 <optional>true</optional>
             </dependency>
 
