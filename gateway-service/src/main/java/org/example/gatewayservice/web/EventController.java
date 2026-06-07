@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.gatewayservice.domain.EventRecord;
 import org.example.gatewayservice.service.EventService;
@@ -33,7 +34,7 @@ public class EventController {
         @ApiResponse(responseCode = "400", description = "Invalid request"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
       })
-  public ResponseEntity<EventRecord> ingestEvent(@RequestBody EventRequest request) {
+  public ResponseEntity<EventRecord> ingestEvent(@RequestBody @Valid EventRequest request) {
     return ResponseEntity.ok(eventService.processEvent(request));
   }
 }
