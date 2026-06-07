@@ -1,5 +1,10 @@
 package org.example.gatewayservice.web;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.example.gatewayservice.domain.EventRecord;
 import org.example.gatewayservice.service.EventService;
@@ -10,13 +15,25 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/events")
 @RequiredArgsConstructor
+@Tag(name = "Events", description = "Event ingestion and forwarding APIs")
 public class EventController {
 
   private final EventService eventService;
 
   @PostMapping
-  public ResponseEntity<EventRecord> createEvent(@RequestBody EventRequest request) {
-    EventRecord eventRecord = eventService.processEvent(request);
-    return ResponseEntity.ok(eventRecord);
+  @Operation(
+      summary = "Ingest a financial event",
+      description =
+          "Accepts an event, stores it idempotently, and forwards it to the Account Service.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Event successfully processed",
+            content = @Content(schema = @Schema(implementation = EventRecord.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid request"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
+      })
+  public ResponseEntity<EventRecord> ingestEvent(@RequestBody EventRequest request) {
+    return ResponseEntity.ok(eventService.processEvent(request));
   }
 }

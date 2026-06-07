@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.example.accountservice.domain.Account;
 import org.example.accountservice.repository.AccountRepository;
+import org.example.accountservice.web.dto.ApplyEventRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,7 +15,12 @@ public class AccountService {
   private final AccountRepository accountRepository;
 
   @Transactional
-  public Account applyEvent(String accountId, BigDecimal amount, String type) {
+  public Account applyEvent(ApplyEventRequest request) {
+
+    String accountId = request.accountId();
+    BigDecimal amount = request.amount();
+    String type = request.type();
+
     Account account =
         accountRepository
             .findByAccountId(accountId)
