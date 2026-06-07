@@ -1,32 +1,37 @@
 version: "3.9"
 
 services:
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.106.0
-    command: [ "--config=/etc/otel-collector-config.yml" ]
-    volumes:
-      - ./otel-collector-config.yml:/etc/otel-collector-config.yml
+  account-service:
+    build:
+      context: ./account-service
+      dockerfile: Dockerfile
+    container_name: account-service
     ports:
-      - "4317:4317"
-      - "4318:4318"
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
 
   gateway-service:
     build:
       context: ./gateway-service
+      dockerfile: Dockerfile
+    container_name: gateway-service
     ports:
       - "8080:8080"
     environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      SPRING_PROFILES_ACTIVE: docker
+      ACCOUNT_SERVICE_BASE_URL: http://account-service:8081
     depends_on:
-      - otel-collector
-      - account-service
+      account-service:
+        condition: service_healthy
+    restart: unless-stopped
 
-  account-service:
-    build:
-      context: ./account-service
-    ports:
-      - "8081:8081"
-    environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-    depends_on:
-      - otel-collector
+networks:
+  default:
+    name: event-ledger-network

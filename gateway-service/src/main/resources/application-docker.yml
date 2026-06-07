@@ -1,0 +1,2 @@
+account-service:
+  base-url: http://account-service:8081
