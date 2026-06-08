@@ -36,6 +36,7 @@ management:
   tracing:
     sampling:
       probability: 1.0 # Capture 100% of requests for dev/test tracing
+    enabled: false
 
   # Unified OpenTelemetry / Jaeger Exporter configuration
   otlp:
