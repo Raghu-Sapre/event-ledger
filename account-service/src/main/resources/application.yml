@@ -17,20 +17,15 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 
+server:
+  port: 8081
+
 management:
   endpoints:
     web:
       exposure:
         include: health,info,metrics,prometheus
-  otlp:
-    tracing:
-      endpoint: http://otel-collector:4317 # Standard OTLP gRPC port
-    metrics:
-      export:
-        endpoint: http://otel-collector:4317 # Standard OTLP gRPC port
-  tracing:
-    sampling:
-      probability: 1.0
+
   metrics:
     distribution:
       percentiles-histogram:
@@ -38,5 +33,11 @@ management:
           server:
             requests: true
 
-server:
-  port: 8081
+  tracing:
+    sampling:
+      probability: 1.0 # Capture 100% of requests for dev/test tracing
+
+  # Unified OpenTelemetry / Jaeger Exporter configuration
+  otlp:
+    tracing:
+      endpoint: http://jaeger:4318/v1/traces # Streams spans straight to your Jaeger UI container
