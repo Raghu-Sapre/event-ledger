@@ -32,7 +32,7 @@ management:
         http:
           server:
             requests: true
-
+# tracing disabled for swagger to come up
   tracing:
     sampling:
       probability: 1.0 # Capture 100% of requests for dev/test tracing
