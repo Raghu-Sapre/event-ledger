@@ -6,9 +6,9 @@ import java.time.Instant;
 import lombok.*;
 
 @Entity // CRITICAL: Tells Hibernate to generate the 'account_transactions' table automatically
-@Table(name = "account_transactions", indexes = {
-        @Index(name = "idx_event_id", columnList = "eventId", unique = true)
-})
+@Table(
+    name = "account_transactions",
+    indexes = {@Index(name = "idx_event_id", columnList = "eventId", unique = true)})
 @Getter
 @Setter
 @NoArgsConstructor
