@@ -6,22 +6,31 @@ import java.math.BigDecimal;
 import lombok.*;
 
 @Entity
+@Table(
+    name = "accounts",
+    indexes = {@Index(name = "idx_account_id", columnList = "accountId")})
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Schema(description = "Represents an account with a running balance")
+@Schema(description = "Represents an account with a running net balance")
 public class Account {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Schema(description = "Database identifier", example = "1")
+  @Schema(description = "Internal database identifier", example = "1")
   private Long id;
 
-  @Schema(description = "Account identifier", example = "acc-001")
+  @Column(unique = true, nullable = false)
+  @Schema(description = "Business account identifier used in API routes", example = "acc-001")
   private String accountId;
 
-  @Schema(description = "Current balance", example = "500.00")
+  @Schema(description = "Current net balance calculated post-sort", example = "500.00")
   private BigDecimal balance;
+
+  public Account(String accountId, BigDecimal balance) {
+    this.accountId = accountId;
+    this.balance = balance;
+  }
 }

@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:account-test-db;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+# CRITICAL FIX: Kill the auto-configuration bean loaders for live telemetry networking
+management:
+  otlp:
+    metrics:
+      export:
+        enabled: false
+    tracing:
+      export:
+        enabled: false
+  tracing:
+    enabled: false
+  prometheus:
+    metrics:
+      export:
+        enabled: false

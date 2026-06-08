@@ -7,8 +7,13 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class WebClientConfig {
 
-    @Bean
-    public WebClient webClient(WebClient.Builder builder) {
-        return builder.build();
-    }
+  /**
+   * Exposes a default WebClient.Builder or WebClient instance into the Spring context so
+   * AccountClient can inject it cleanly.
+   */
+  @Bean
+  public WebClient webClient(WebClient.Builder builder) {
+    // You can also pre-configure global base URLs here if desired
+    return builder.build();
+  }
 }

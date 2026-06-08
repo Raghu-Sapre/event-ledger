@@ -1,4 +1,4 @@
-package org.example.accountservice.web.error;
+package org.example.gatewayservice.web.error;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;

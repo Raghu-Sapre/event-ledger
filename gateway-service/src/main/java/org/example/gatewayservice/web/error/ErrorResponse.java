@@ -1,4 +1,4 @@
-package org.example.accountservice.web.error;
+package org.example.gatewayservice.web.error;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
