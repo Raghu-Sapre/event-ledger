@@ -13,6 +13,14 @@ The system consists of the following components running in a unified Docker netw
 * **Prometheus (`port 9090`)**: Time-series database scraping micrometer telemetry variables.
 * **Grafana (`port 3000`)**: Professional visualization layer for performance metrics.
 
+### 🛡️ Resiliency Architecture Decisions
+
+For this architecture, the **Circuit Breaker** pattern was selected via Resilience4j.
+
+**Why Circuit Breaker over Bulkhead or Timeouts?**
+1. **Fails Fast under Load:** If the downstream `Account Service` crashes or experiences database locking issues, a simple timeout forces the Gateway to hang onto active HTTP threads until the limit threshold clears, risking thread exhaustion.
+2. **Protects System Subsystems:** The Circuit Breaker trips to an `OPEN` state after a 50% failure rate is detected within a 20-request window, preventing cascading service failures.
+3. **Graceful Degradation Compatibility:** While the circuit is open, the Gateway immediately returns an explicit `503 Service Unavailable` status to users for writes, while allowing `GET` read queries to continue serving data successfully out of local cache/storage.
 ---
 
 ## 🛠 Prerequisites for Windows
@@ -152,3 +160,15 @@ Safe Shutdown Command
 To safely terminate the network, wipe temporary containers, and release allocated RAM blocks without deleting configuration assets:
 
     docker compose down
+
+Examle json log:
+{
+  "@timestamp": "2026-06-08T03:22:15.123-05:00",
+  "level": "INFO",
+  "thread_name": "http-nio-8080-exec-1",
+  "logger_name": "org.example.gatewayservice.service.EventService",
+  "message": "Processing financial event for account acc-001",
+  "traceId": "65cd1b74e61b369137ba931b25a36bc4",
+  "spanId": "31b25a36bc42b931",
+  "service": "gateway-service"
+}

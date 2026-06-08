@@ -25,6 +25,7 @@
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
         <maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
         <logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
+        <spring-boot-dependencies.version>3.5.1</spring-boot-dependencies.version>
     </properties>
 
     <!-- Multi-module structure -->
@@ -41,7 +42,7 @@
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
-                <version>3.5.1</version>
+                <version>${spring-boot-dependencies.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -87,7 +88,7 @@
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-actuator</artifactId>
-                <version>3.5.1</version>
+                <version>${spring-boot-dependencies.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.micrometer</groupId>

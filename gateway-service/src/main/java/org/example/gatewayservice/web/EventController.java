@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.example.gatewayservice.domain.EventRecord;
 import org.example.gatewayservice.service.EventService;
@@ -36,5 +37,20 @@ public class EventController {
       })
   public ResponseEntity<EventRecord> ingestEvent(@RequestBody @Valid EventRequest request) {
     return ResponseEntity.ok(eventService.processEvent(request));
+  }
+
+  @GetMapping("/{id}")
+  @Operation(summary = "Retrieve a single event by its ID")
+  public ResponseEntity<EventRecord> getEventById(@PathVariable String id) {
+    return eventService
+        .getEventById(id)
+        .map(ResponseEntity::ok)
+        .orElse(ResponseEntity.notFound().build());
+  }
+
+  @GetMapping
+  @Operation(summary = "List events for an account, ordered chronologically")
+  public ResponseEntity<List<EventRecord>> getAccountEvents(@RequestParam String account) {
+    return ResponseEntity.ok(eventService.getEventsByAccountChronological(account));
   }
 }

@@ -1,6 +1,6 @@
 package org.example.gatewayservice.service;
 
-import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.example.gatewayservice.domain.EventRecord;
@@ -26,18 +26,30 @@ public class EventService {
       return optionalEventRecord.get();
     }
 
+    // Inside EventService.java
     EventRecord eventRecord =
         EventRecord.builder()
             .eventId(request.eventId())
             .accountId(request.accountId())
             .amount(request.amount())
             .type(request.type())
-            .eventTime(Instant.now())
+            .currency(request.currency()) // Save to DB
+            .eventTime(
+                request.eventTimestamp()) // Use payload timestamp for out-of-order tolerance!
             .build();
 
     // Call account-service
     accountClient.applyEvent(request);
 
     return eventRecordRepository.save(eventRecord);
+  }
+
+  public Optional<EventRecord> getEventById(String eventId) {
+    return eventRecordRepository.findByEventId(eventId);
+  }
+
+  public List<EventRecord> getEventsByAccountChronological(String accountId) {
+    // Must be explicitly sorted chronologically by eventTimestamp
+    return eventRecordRepository.findByAccountIdOrderByEventTimeAsc(accountId);
   }
 }

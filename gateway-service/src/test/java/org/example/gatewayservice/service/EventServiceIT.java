@@ -5,6 +5,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Optional;
 import org.example.gatewayservice.domain.EventRecord;
 import org.example.gatewayservice.repository.EventRecordRepository;
@@ -36,9 +37,20 @@ class EventServiceIT {
   @Test
   void processEvent_FullDatabaseIntegrationAndIdempotencyFlow() {
     // Given
-    EventRequest firstRequest =
-        new EventRequest("evt-it-555", "acc-it", new BigDecimal("50.00"), "DEBIT");
+    // OLD (Remove this)
+    // EventRequest firstRequest = new EventRequest("evt-it-555", "acc-it", new BigDecimal("50.00"),
+    // "DEBIT");
 
+    // NEW (Use this)
+    EventRequest firstRequest =
+        new EventRequest(
+            "evt-it-555",
+            "acc-it",
+            new BigDecimal("50.00"),
+            "USD", // Currency
+            "DEBIT", // Type
+            Instant.now() // eventTimestamp
+            );
     // When - First execution (New Event)
     EventRecord savedRecord = eventService.processEvent(firstRequest);
 
