@@ -1,5 +1,5 @@
 # event-ledger
-event-ledger (Spring Boot 3.5.1 - Java 21
+event-ledger (Spring Boot 3.5.1 - Java 21)
 # Event Ledger Ecosystem
 
 A modern distributed microservice architecture utilizing Spring Boot 3.5.1, Java 25, and high-fidelity observability tracking. This platform processes transaction ledgers through an API Gateway, backed by containerized in-memory H2 databases and full telemetry infrastructure.
