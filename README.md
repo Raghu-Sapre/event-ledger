@@ -109,6 +109,11 @@ grafana           grafana/grafana:latest            "/run.sh"                gra
 jaeger            jaegertracing/all-in-one:latest   "/go/bin/all-in-one-…"   jaeger            4 minutes ago   Up 4 minutes             4317/tcp, 9411/tcp, 14250/tcp, 0.0.0.0:4318->4318/tcp, 14268/tcp, 0.0.0.0:16686->16686/tcp
 prometheus        prom/prometheus:latest            "/bin/prometheus --c…"   prometheus        4 minutes ago   Up 4 minutes             0.0.0.0:9090->9090/tcp
 
+
+ **Accesing the swagger UI:
+http://localhost:8080/swagger-ui/index.html - for gateway service
+http://localhost:8081/swagger-ui/index.html - for account service**
+
 Accessing the Telemetry Dashboards
 Once all components display a status of healthy or running, generate some test data by making an API call through the gateway (e.g., http://localhost:8080/actuator/health). Then inspect the dashboards:
 
@@ -161,7 +166,7 @@ To safely terminate the network, wipe temporary containers, and release allocate
 
     docker compose down
 
-Examle json log:
+Example json log:
 {
   "@timestamp": "2026-06-08T03:22:15.123-05:00",
   "level": "INFO",
@@ -172,3 +177,5 @@ Examle json log:
   "spanId": "31b25a36bc42b931",
   "service": "gateway-service"
 }
+
+
