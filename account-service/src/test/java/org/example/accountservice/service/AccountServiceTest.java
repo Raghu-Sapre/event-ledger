@@ -64,17 +64,16 @@ class AccountServiceTest {
     ApplyEventRequest duplicateRequest =
         new ApplyEventRequest(
             "evt-123", accountId, new BigDecimal("100.00"), "CREDIT", Instant.now());
+
+    // 1. Stub the atomic insert to return 0 (simulating conflict/duplicate)
+    when(transactionRepository.insertIfNotExists(
+            anyString(), anyString(), any(BigDecimal.class), any(Instant.class)))
+        .thenReturn(0);
+
+    // 2. Mock the account return
     Account existingAccount =
         Account.builder().accountId(accountId).balance(new BigDecimal("100.00")).build();
-
-    when(transactionRepository.existsByEventId("evt-123")).thenReturn(true);
-
-    // Stub both variants to cover whichever one your implementation is using under the hood:
-    lenient()
-        .when(accountRepository.findByAccountId(accountId))
-        .thenReturn(Optional.of(existingAccount));
-    lenient()
-        .when(accountRepository.findByAccountIdWithLock(accountId))
+    when(accountRepository.findByAccountIdWithLock(accountId))
         .thenReturn(Optional.of(existingAccount));
 
     // Act
@@ -83,6 +82,9 @@ class AccountServiceTest {
     // Assert
     assertNotNull(result);
     assertEquals(new BigDecimal("100.00"), result.getBalance());
+
+    // 3. Verify no balance recalculation was attempted
+    verify(transactionRepository, never()).findByAccountIdOrderByEventTimestampAsc(anyString());
   }
 
   @Test
@@ -116,7 +118,11 @@ class AccountServiceTest {
             .eventTimestamp(time1)
             .build();
 
-    when(transactionRepository.existsByEventId("evt-late")).thenReturn(false);
+    // Replace the old existsByEventId stub with the new insertIfNotExists stub
+    // Return 1 to simulate a successful (non-duplicate) insert
+    when(transactionRepository.insertIfNotExists(
+            anyString(), anyString(), any(BigDecimal.class), any(Instant.class)))
+        .thenReturn(1);
 
     lenient()
         .when(accountRepository.findByAccountIdWithLock(accountId))

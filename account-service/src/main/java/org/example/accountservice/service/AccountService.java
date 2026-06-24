@@ -37,17 +37,15 @@ public class AccountService {
   public Account applyEvent(ApplyEventRequest request) {
     log.info("Applying event {} to account {}", request.eventId(), request.accountId());
 
-    // 1. Idempotency Check: If eventId already processed, bypass calculation completely
-    if (transactionRepository.existsByEventId(request.eventId())) {
-      log.warn(
-          "Duplicate event detected! Event ID: {} has already been applied. Returning current state idempotently.",
-          request.eventId());
+    // 1. ATOMIC IDEMPOTENCY: Try to insert. If returns 0, it means the event already exists.
+    int rowsAffected =
+        transactionRepository.insertIfNotExists(
+            request.eventId(), request.accountId(), request.amount(), request.eventTimestamp());
 
-      // FIX: Using locked variant here prevents dirty-reads if an edge-case duplicate arrives
-      // simultaneously during another thread's uncommitted calculation.
-      return accountRepository
-          .findByAccountIdWithLock(request.accountId())
-          .orElseGet(() -> createNewAccount(request.accountId(), BigDecimal.ZERO));
+    // If rowsAffected is 0, the event is a duplicate. Log and exit or return early.
+    if (rowsAffected == 0) {
+      log.info("Duplicate event ignored: {}", request.eventId());
+      return getAccount(request.accountId());
     }
 
     // 2. Fetch account or initialize a new one if it's their very first transaction

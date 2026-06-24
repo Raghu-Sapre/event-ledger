@@ -8,6 +8,7 @@ import lombok.*;
 @Entity
 @Table(
     name = "account_transactions",
+    uniqueConstraints = {@UniqueConstraint(name = "uk_event_id", columnNames = "eventId")},
     indexes = {
       @Index(name = "idx_event_id", columnList = "eventId", unique = true),
       // CRITICAL PERFORMANCE INDEX: Accelerates out-of-order chronological calculation queries
