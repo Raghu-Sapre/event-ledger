@@ -23,7 +23,8 @@ public class AccountService {
 
   /**
    * Fetches an account by its unique business ID. If the account does not exist, it throws a
-   * localized exception or handles safely.
+   * localized exception or handles safely. * senior note: Kept as regular read (no lock) to
+   * optimize endpoint read throughput.
    */
   public Account getAccount(String accountId) {
     return accountRepository
@@ -41,15 +42,19 @@ public class AccountService {
       log.warn(
           "Duplicate event detected! Event ID: {} has already been applied. Returning current state idempotently.",
           request.eventId());
+
+      // FIX: Using locked variant here prevents dirty-reads if an edge-case duplicate arrives
+      // simultaneously during another thread's uncommitted calculation.
       return accountRepository
-          .findByAccountId(request.accountId())
+          .findByAccountIdWithLock(request.accountId())
           .orElseGet(() -> createNewAccount(request.accountId(), BigDecimal.ZERO));
     }
 
     // 2. Fetch account or initialize a new one if it's their very first transaction
+    // FIX: Upgraded to exclusive write-lock to serialize concurrent ledger updates.
     Account account =
         accountRepository
-            .findByAccountId(request.accountId())
+            .findByAccountIdWithLock(request.accountId())
             .orElseGet(() -> createNewAccount(request.accountId(), BigDecimal.ZERO));
 
     // 3. Save the historical transaction record
@@ -59,7 +64,7 @@ public class AccountService {
             .accountId(request.accountId())
             .amount(request.amount())
             .type(request.type().toUpperCase())
-            .eventTimestamp(request.eventTimestamp()) // Injected timestamp from your updated DTO
+            .eventTimestamp(request.eventTimestamp())
             .build();
     transactionRepository.save(newTx);
 

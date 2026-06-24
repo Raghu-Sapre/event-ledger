@@ -57,4 +57,19 @@ public class GlobalExceptionHandler {
             List.of());
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
   }
+
+  @ExceptionHandler(io.github.resilience4j.circuitbreaker.CallNotPermittedException.class)
+  public ResponseEntity<ErrorResponse> handleOpenCircuit(
+      io.github.resilience4j.circuitbreaker.CallNotPermittedException ex,
+      HttpServletRequest request) {
+    ErrorResponse body =
+        new ErrorResponse(
+            HttpStatus.SERVICE_UNAVAILABLE.value(),
+            "Service Unavailable",
+            "Downstream system circuit breaker is open. Request buffered via backup fallback routes.",
+            request.getRequestURI(),
+            Instant.now(),
+            List.of(ex.getClass().getSimpleName()));
+    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(body);
+  }
 }

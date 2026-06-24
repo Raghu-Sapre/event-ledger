@@ -5,10 +5,14 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.*;
 
-@Entity // CRITICAL: Tells Hibernate to generate the 'account_transactions' table automatically
+@Entity
 @Table(
     name = "account_transactions",
-    indexes = {@Index(name = "idx_event_id", columnList = "eventId", unique = true)})
+    indexes = {
+      @Index(name = "idx_event_id", columnList = "eventId", unique = true),
+      // CRITICAL PERFORMANCE INDEX: Accelerates out-of-order chronological calculation queries
+      @Index(name = "idx_account_timestamp", columnList = "accountId, eventTimestamp")
+    })
 @Getter
 @Setter
 @NoArgsConstructor

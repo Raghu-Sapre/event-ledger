@@ -2,27 +2,21 @@ spring:
   application:
     name: gateway-service
   datasource:
-    url: jdbc:h2:mem:gateway-db;DB_CLOSE_DELAY=-1
+    # Isolated in-memory workspace configuration
+    url: jdbc:h2:mem:gatewaydb;DB_CLOSE_DELAY=-1;NON_KEYWORDS=KEY,VALUE
     driver-class-name: org.h2.Driver
     username: sa
-    password:
+    password: ""
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  otlp:
-    metrics:
-      export:
-        url: http://otel-collector:4318/v1/metrics
-  tracing:
-    sampling:
-      probability: 1.0
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
 
 server:
   port: 8080
@@ -30,13 +24,47 @@ server:
 account-service:
   base-url: http://account-service:8081
 
+# Structured Trace-Friendly Logging Pattern
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+  level:
+    org.springframework.web: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true
+
+  # FIXED: Tracing is turned fully back ON to satisfy the distributed tracing constraint
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0
+
+  # Unified OpenTelemetry / Jaeger Exporter configuration
+  otlp:
+    tracing:
+      endpoint: http://jaeger:4318/v1/traces
+
 resilience4j:
-  circuitbreaker:
+  retry:
     instances:
       accountService:
-        sliding-window-size: 20
-        minimum-number-of-calls: 5
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 10s
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
+        max-attempts: 3
+        wait-duration: 500ms
+        # FIXED: Removed the nested 'interval-function' property block wrapper
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        enable-randomized-wait: true
+        randomized-wait-factor: 0.5
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException

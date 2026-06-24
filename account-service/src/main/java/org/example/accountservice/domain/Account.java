@@ -26,6 +26,8 @@ public class Account {
   @Schema(description = "Business account identifier used in API routes", example = "acc-001")
   private String accountId;
 
+  // Added nullable = false constraint to prevent DB null corruptions
+  @Column(nullable = false)
   @Schema(description = "Current net balance calculated post-sort", example = "500.00")
   private BigDecimal balance;
 

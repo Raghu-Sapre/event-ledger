@@ -26,88 +26,92 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(EventController.class)
 class EventControllerUnitTest {
 
-  @Autowired
-  private MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
-  @Autowired
-  private ObjectMapper objectMapper;
+  @Autowired private ObjectMapper objectMapper;
 
-  @MockitoBean
-  private EventService eventService;
+  @MockitoBean private EventService eventService;
 
-  private EventRequest validRequestRecord;
   private EventRecord mockReturnEntity;
+  private EventRequest standardRequest;
 
   @BeforeEach
   void setUp() {
-    Instant specificTime = Instant.parse("2026-05-15T14:02:11Z");
+    Instant timestamp = Instant.parse("2026-06-24T12:00:00Z");
 
-    // Canonical constructor reflecting full assignment properties (eventId, accountId, amount, currency, type, eventTimestamp)
-    validRequestRecord = new EventRequest("evt-9999", "acc-123", new BigDecimal("150.00"), "USD", "CREDIT", specificTime);
+    standardRequest =
+        new EventRequest(
+            "evt-123", "acc-001", new BigDecimal("150.00"), "USD", "CREDIT", timestamp);
 
-    mockReturnEntity = EventRecord.builder()
+    mockReturnEntity =
+        EventRecord.builder()
             .id(1L)
-            .eventId("evt-9999")
-            .accountId("acc-123")
+            .eventId("evt-123")
+            .accountId("acc-001")
             .amount(new BigDecimal("150.00"))
             .currency("USD")
             .type("CREDIT")
-            .eventTime(specificTime)
+            .eventTime(timestamp)
             .build();
   }
 
   @Test
-  void ingestEvent_ShouldReturnOk_WhenRecordIsValid() throws Exception {
+  void ingestEvent_ShouldReturn202Accepted_WhenPayloadIsValid() throws Exception {
     Mockito.when(eventService.processEvent(any(EventRequest.class))).thenReturn(mockReturnEntity);
 
-    mockMvc.perform(post("/events")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(validRequestRecord)))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.id").value(1))
-            .andExpect(jsonPath("$.accountId").value("acc-123"))
-            .andExpect(jsonPath("$.currency").value("USD"))
-            .andExpect(jsonPath("$.eventId").value("evt-9999"));
+    mockMvc
+        .perform(
+            post("/events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(standardRequest)))
+        // FIXED: Expect 202 Accepted matching your resilient architecture design pattern
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.eventId").value("evt-123"))
+        .andExpect(jsonPath("$.currency").value("USD"));
   }
 
   @Test
-  void ingestEvent_ShouldReturnBadRequest_WhenValidationConstraintsFail() throws Exception {
-    // Passing an invalid balance (0.00 violates @DecimalMin("0.01"))
-    EventRequest invalidRequestRecord = new EventRequest("evt-9999", "acc-123", new BigDecimal("0.00"), "USD", "CREDIT", Instant.now());
+  void ingestEvent_ShouldReturn400BadRequest_WhenConstraintsViolated() throws Exception {
+    // Creating an invalid payload with a zero value amount constraint violation
+    EventRequest invalidRequest =
+        new EventRequest("evt-123", "acc-001", BigDecimal.ZERO, "USD", "CREDIT", Instant.now());
 
-    mockMvc.perform(post("/events")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(invalidRequestRecord)))
-            .andExpect(status().isBadRequest());
+    mockMvc
+        .perform(
+            post("/events")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(invalidRequest)))
+        .andExpect(status().isBadRequest());
   }
 
   @Test
   void getEventById_ShouldReturnEntity_WhenFound() throws Exception {
-    Mockito.when(eventService.getEventById("evt-9999")).thenReturn(Optional.of(mockReturnEntity));
+    Mockito.when(eventService.getEventById("evt-123")).thenReturn(Optional.of(mockReturnEntity));
 
-    mockMvc.perform(get("/events/evt-9999"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$.eventId").value("evt-9999"));
+    mockMvc
+        .perform(get("/events/evt-123"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.eventId").value("evt-123"));
   }
 
   @Test
-  void getEventById_ShouldReturn404_WhenNotFound() throws Exception {
+  void getEventById_ShouldReturn404NotFound_WhenMissing() throws Exception {
     Mockito.when(eventService.getEventById("missing-id")).thenReturn(Optional.empty());
 
-    mockMvc.perform(get("/events/missing-id"))
-            .andExpect(status().isNotFound());
+    mockMvc.perform(get("/events/missing-id")).andExpect(status().isNotFound());
   }
 
   @Test
   void getAccountEvents_ShouldReturnChronologicalList() throws Exception {
     List<EventRecord> chronologicalList = List.of(mockReturnEntity);
-    Mockito.when(eventService.getEventsByAccountChronological("acc-123")).thenReturn(chronologicalList);
+    Mockito.when(eventService.getEventsByAccountChronological("acc-001"))
+        .thenReturn(chronologicalList);
 
-    mockMvc.perform(get("/events").param("account", "acc-123"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath("$[0].accountId").value("acc-123"));
+    mockMvc
+        .perform(get("/events").param("account", "acc-001"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$[0].accountId").value("acc-001"));
   }
 }

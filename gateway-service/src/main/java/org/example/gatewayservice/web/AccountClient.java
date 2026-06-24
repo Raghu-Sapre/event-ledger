@@ -1,30 +1,27 @@
 package org.example.gatewayservice.web;
 
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.gatewayservice.web.dto.EventRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestClient;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class AccountClient {
 
-  private final WebClient accountWebClient;
+  private final RestClient accountRestClient;
 
-  @CircuitBreaker(name = "accountService", fallbackMethod = "fallbackApplyEvent")
   public void applyEvent(EventRequest request) {
-    accountWebClient
-        .post()
-        .uri("/accounts/apply-event")
-        .bodyValue(request)
-        .retrieve()
-        .toBodilessEntity()
-        .block();
-  }
+    log.debug(
+        "Sending synchronous POST request to account-service for event: {}", request.eventId());
 
-  // Fallback signature must match + Throwable at end
-  private void fallbackApplyEvent(EventRequest request, Throwable ex) {
-    // log, enqueue for retry, etc.
+    accountRestClient
+        .post()
+        .uri("/accounts/" + request.accountId() + "/transactions")
+        .body(request)
+        .retrieve()
+        .toBodilessEntity(); // Automatically throws exceptions on 4xx or 5xx responses
   }
 }
