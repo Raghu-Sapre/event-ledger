@@ -17,14 +17,14 @@ The ecosystem operates as a distributed system partitioned across two decoupled,
 
 The synchronous HTTP communication boundary between the `Gateway Service` and the `Account Service` is heavily guarded by a multi-tiered resilience pattern using **Resilience4j** and **Apache HttpClient5 pooling**.
 
-### Coordinated Defense Strategy: Retry + Circuit Breaker
+### Coordinated Defense Strategy: Retry + Circuit Breaker + Bulkhead
 1. **Exponential Backoff Retry (`accountServiceRetry`):** Transient network blips or temporary downstream thread locking are resolved gracefully using a 3-attempt retry loop. It leverages an initial `503ms` delay with a `2x` multiplier and a `0.5` randomized jitter factor to avoid the "thundering herd" problem.
 2. **Circuit Breaker (`accountServiceCircuitBreaker`):** If failures persist and cross a 50% error threshold over a rolling sample window, the circuit trips to **OPEN**.
    * **Thread Pool Protection:** This immediately stops the `Gateway Service` from hanging onto Tomcat container threads waiting for a stalled downstream service, completely preventing upstream thread exhaustion.
    * **Downstream Recovery:** The open circuit gives the `Account Service` database connection pool room to breathe and recover from heavy thrashing or locks.
 3. **Pooled Connection Management:** Configured via `PoolingHttpClientConnectionManager` with a maximum of 100 total connections and 20 default connections per route, backed by strict 5-second connection and response timeouts.
+4. **Thread Pool Bulkhead (accountServiceBulkhead)**: To isolate downstream dependencies and protect upstream resources, a dedicated Resilience4j Bulkhead limits the maximum number of concurrent threads dedicated to executing calls toward the Account Service.
 
----
 
 ## 📊 3. Core Ledger Engineering Strategies
 
