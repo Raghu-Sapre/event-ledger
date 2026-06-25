@@ -80,9 +80,10 @@ docker compose down
 Once the infrastructure is up, you can access the service entry points and diagnostic dashboards using the following URLs:
 
 🛠️ **Service Documentation & Interacting**
-Gateway Service Swagger UI: http://localhost:8080/swagger-ui/index.htmlAccount 
 
-Service Swagger UI: http://localhost:8081/swagger-ui/index.html
+Gateway Service Swagger UI: http://localhost:8080/swagger-ui/index.html
+
+Account Service Swagger UI: http://localhost:8081/swagger-ui/index.html
 
 Use these to fire test transactional payloads into the endpoints and generate live telemetry data.
 🔍 **Observability Systems**
