@@ -51,3 +51,74 @@ Ensure the following environments are configured on your workstation before star
 Build the multi-module artifact jars from the root directory while running standard static code checks and formatting verification loops:
 ```bash
 mvn clean package
+```
+How to Run the Infrastructure
+Prerequisites
+Make sure you have Docker and Docker Compose installed on your system, and that the Docker daemon is actively running.
+
+1. Compile the Project Assets
+Before running the containers, build the native executable jar artifacts using the Maven wrapper:
+# From the project root directory
+```bash
+mvn clean package -DskipTests
+```
+Launch the Stack
+Spin up the microservices along with the full telemetry pipeline in detached mode:
+```bash
+docker compose up --build -d
+```
+The Gateway Service will wait to fully start until the Account Service passes its automated health check.
+
+3. Terminate the Stack
+To stop the application network and clear active container configurations without losing data volumes:
+```bash
+docker compose down
+```
+
+**Accessing Dashboards & Documentation**
+
+Once the infrastructure is up, you can access the service entry points and diagnostic dashboards using the following URLs:
+
+🛠️ **Service Documentation & Interacting**
+Gateway Service Swagger UI: http://localhost:8080/swagger-ui/index.htmlAccount 
+
+Service Swagger UI: http://localhost:8081/swagger-ui/index.html
+
+Use these to fire test transactional payloads into the endpoints and generate live telemetry data.
+🔍 **Observability Systems**
+**SystemURL TargetCore Diagnostic Capability
+
+Jaeger UI   http://localhost:16686
+
+**End-to-end distributed transaction tracing**
+
+Prometheus http://localhost:9090 Raw time-series performance metrics scraping
+Grafana  http://localhost:3000 High-fidelity dashboard visualization layer
+
+
+📈 How to Inspect Traces, Metrics, and Logs1. 
+
+1. Tracking Distributed Traces (Jaeger)
+Distributed tracing follows a request as it travels from the Gateway Service to the Account Service.
+Open the Jaeger UI (http://localhost:16686).
+Under Service, select gateway-service.
+Click Find Traces.
+Click into any trace block to see exactly how long the request spent inside the Gateway vs. the downstream Account Service processing logic.
+
+2. Inspecting Performance Metrics (Prometheus & Grafana) Metrics track system performance, such as request counts, error rates, and JVM memory.
+3. Raw Metrics Data: You can view the real-time Prometheus string exposure lines directly via the actuator scrapers at http://localhost:8080/actuator/prometheus or http://localhost:8081/actuator/prometheus. 
+4. Visual Dashboards (Grafana):Open Grafana (http://localhost:3000) and log in (Default: admin / admin).
+5. Go to Connections -> Data Sources and add Prometheus with the URL http://prometheus:9090. 
+6. Click Save & Test.Go to Dashboards -> Import, enter ID 4701 (JVM Micrometer Core) or 11378 (Spring Boot Dashboard), and click Load to visualize real-time application behavior graphs.
+7. Checking Structured JSON Logs (Docker) Both microservices use structured Logstash JSON layout formatters that output straight to standard console pipes.
+8. To stream live logs from the cluster and watch transaction events or exceptions parse in real-time, execute:Bash
+
+# Stream logs from all services in the cluster
+```bash
+docker compose logs -f
+```
+# Stream logs exclusively from a single service
+```bash
+docker compose logs -f gateway-service
+docker compose logs -f account-service
+```
