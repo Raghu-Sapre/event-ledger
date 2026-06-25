@@ -1,181 +1,53 @@
-# event-ledger
-event-ledger (Spring Boot 3.5.1 - Java 21)
-# Event Ledger Ecosystem
+# Distributed Event Ledger Ecosystem
 
-A modern distributed microservice architecture utilizing Spring Boot 3.5.1, Java 25, and high-fidelity observability tracking. This platform processes transaction ledgers through an API Gateway, backed by containerized in-memory H2 databases and full telemetry infrastructure.
-
-## 🏗 Architecture Overview
-
-The system consists of the following components running in a unified Docker network:
-* **Gateway Service (`port 8080`)**: Ingress edge router protected by Resilience4j Circuit Breakers.
-* **Account Service (`port 8081`)**: Downstream ledger processor managing transactional accounts.
-* **Jaeger (`port 16686`)**: Distributed tracing visualization UI (OTLP HTTP collector).
-* **Prometheus (`port 9090`)**: Time-series database scraping micrometer telemetry variables.
-* **Grafana (`port 3000`)**: Professional visualization layer for performance metrics.
-
-### 🛡️ Resiliency Architecture Decisions
-
-For this architecture, the **Circuit Breaker** pattern was selected via Resilience4j.
-
-**Why Circuit Breaker over Bulkhead or Timeouts?**
-1. **Fails Fast under Load:** If the downstream `Account Service` crashes or experiences database locking issues, a simple timeout forces the Gateway to hang onto active HTTP threads until the limit threshold clears, risking thread exhaustion.
-2. **Protects System Subsystems:** The Circuit Breaker trips to an `OPEN` state after a 50% failure rate is detected within a 20-request window, preventing cascading service failures.
-3. **Graceful Degradation Compatibility:** While the circuit is open, the Gateway immediately returns an explicit `503 Service Unavailable` status to users for writes, while allowing `GET` read queries to continue serving data successfully out of local cache/storage.
----
-
-## 🛠 Prerequisites for Windows
-
-Before running the stack, ensure you have the following installed on your machine:
-1. **Windows 10/11** with [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running (using WSL 2 backend).
-2. **Java 21 or 25** configured locally.
-3. **Apache Maven 3.9+** configured in your system environment variables.
+A robust distributed microservice system built with **Spring Boot 3.5.14** and **Java 21** designed to process high-throughput financial transaction logs. The ecosystem is composed of a public edge Event Gateway API and an isolated internal Account Service downstream. It provides deterministic guarantees for transaction idempotency, handles out-of-order event deliveries gracefully, propagates distributed trace contexts, and protects infrastructure components against cascading network failures.
 
 ---
 
-## 🚀 Step-by-Step Launch Sequence
+## 🏗 1. System Architecture Overview
 
-Open your **PowerShell** or **Command Prompt** terminal at the project root (`C:\Users\raghu\IdeaProjects\event-ledger`) and run the following commands in order:
+The ecosystem operates as a distributed system partitioned across two decoupled, independently runnable microservices. To comply with decoupled core data architectures, **neither service shares any database tables, files, or state**:
 
-### 1. Compile the Multi-Module Binaries
-Compile and package the fresh `.jar` files for both microservices concurrently:
+* **Gateway Service (`port 8080`)**: Acts as the public-facing edge routing ingress. It validates inbound transactions, records a local event footprint into an isolated in-memory audit database (`gatewaydb`), handles trace generation/preservation, and maps requests to the downstream engine via synchronous HTTP calls via a custom pooled `RestClient`.
+* **Account Service (`port 8081`)**: Acts as the decoupled downstream financial processing core. It maintains exclusive authority over account balances, coordinates transactional mutations through strict pessimistic write-locking (`LockModeType.PESSIMISTIC_WRITE`) to avoid race conditions, archives a transaction ledger history, and re-computes current net balances dynamically based on the transaction timeline logs.
+
+---
+
+## 🛡️ 2. Resiliency & Fault Isolation Architecture
+
+The synchronous HTTP communication boundary between the `Gateway Service` and the `Account Service` is heavily guarded by a multi-tiered resilience pattern using **Resilience4j** and **Apache HttpClient5 pooling**.
+
+### Coordinated Defense Strategy: Retry + Circuit Breaker
+1. **Exponential Backoff Retry (`accountServiceRetry`):** Transient network blips or temporary downstream thread locking are resolved gracefully using a 3-attempt retry loop. It leverages an initial `503ms` delay with a `2x` multiplier and a `0.5` randomized jitter factor to avoid the "thundering herd" problem.
+2. **Circuit Breaker (`accountServiceCircuitBreaker`):** If failures persist and cross a 50% error threshold over a rolling sample window, the circuit trips to **OPEN**.
+    * **Thread Pool Protection:** This immediately stops the `Gateway Service` from hanging onto Tomcat container threads waiting for a stalled downstream service, completely preventing upstream thread exhaustion.
+    * **Downstream Recovery:** The open circuit gives the `Account Service` database connection pool room to breathe and recover from heavy thrashing or locks.
+3. **Pooled Connection Management:** Configured via `PoolingHttpClientConnectionManager` with a maximum of 100 total connections and 20 default connections per route, backed by strict 5-second connection and response timeouts.
+
+---
+
+## 📊 3. Core Ledger Engineering Strategies
+
+| System Challenge | Architectural Resolution Strategy | Reference Component |
+| :--- | :--- | :--- |
+| **Idempotency** | The database layer logs transactions utilizing an atomic `INSERT INTO ... ON CONFLICT (event_id) DO NOTHING` constraint. The raw affected row counts are analyzed; if the count is `0`, the delivery is classified as a duplicate and exits processing without triggering calculations. | `AccountTransactionRepository.insertIfNotExists` |
+| **Out-Of-Order Handling** | Balances are never adjusted incrementally via unpredictable incoming events. Instead, the service pulls the *entire historical transaction log* for the target account, forces a strict chronological sorting layer, and recomputes the state from scratch utilizing the absolute ledger formula: <br>$$\text{Net Balance} = \sum(\text{Credits}) - \sum(\text{Debits})$$ | `AccountService.applyEvent` |
+| **Distributed Tracing** | Trace context is automatically intercepted and injected across service boundaries via standard **W3C Trace Context Headers** (`traceparent`). Incoming trace structures are preserved to ensure unified distributed trace identification. | `Gateway Client` $\rightarrow$ `Account Controller` |
+
+---
+
+## 🛠 4. Prerequisites & Setup
+
+Ensure the following environments are configured on your workstation before starting the stack:
+* **Docker Engine** paired with **Docker Desktop** (configured with a minimum of 4GB allocated memory).
+* **Java 21 LTS** installation.
+* **Apache Maven 3.9+** mapped into system environment variables.
+
+---
+
+## 🚀 5. Step-by-Step Launch Sequence
+
+### Step 1: Compile and Package Binaries
+Build the multi-module artifact jars from the root directory while running standard static code checks and formatting verification loops:
 ```bash
-mvn clean package -DskipTests
-
-2. Boot Up the Infrastructure Stack
-Deploy the full container cluster in detached (background) mode:
-
-docker compose up --build -d
-
-PS C:\Users\raghu\IdeaProjects\event-ledger> docker compose up --build -d
-
-
-time="2026-06-08T02:13:53-05:00" level=warning msg="C:\\Users\\raghu\\IdeaProjects\\event-ledger\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
-[+] Building 13.3s (15/15) FINISHED                                                                docker:desktop-linux
- => [account-service internal] load build definition from Dockerfile                                               0.0s
- => => transferring dockerfile: 196B                                                                               0.0s
- => [gateway-service internal] load metadata for docker.io/library/eclipse-temurin:21-jdk-alpine                   0.7s
- => [account-service internal] load .dockerignore                                                                  0.0s
- => => transferring context: 2B                                                                                    0.0s
- => [gateway-service 1/3] FROM docker.io/library/eclipse-temurin:21-jdk-alpine@sha256:4fb80de7aeb277ad949cfbe89b4  0.1s
- => => resolve docker.io/library/eclipse-temurin:21-jdk-alpine@sha256:4fb80de7aeb277ad949cfbe89b4f504e50bb34c57fd  0.1s
- => [account-service internal] load build context                                                                  2.3s
- => => transferring context: 75.67MB                                                                               2.3s
- => CACHED [gateway-service 2/3] WORKDIR /app                                                                      0.0s
- => [account-service 3/3] COPY target/account-service-0.0.1-SNAPSHOT.jar app.jar                                   0.2s
- => [account-service] exporting to image                                                                           3.0s
- => => exporting layers                                                                                            2.4s
- => => exporting manifest sha256:367cc32450dffd41d8d70057499090c2d08355f43959d10ad1e3aa698e2262b1                  0.0s
- => => exporting config sha256:082fde2855660ca409403a27a3f428da30d446b52e2228967cbb15f0a506fd01                    0.0s
- => => exporting attestation manifest sha256:2c4d0ca2ba8fd17d9526271038d7faad5ea7cde0ed2d0372f0cf4e569261dcde      0.1s
- => => exporting manifest list sha256:be665b56993fec5a8bc5a9037baf81c6150195bcf80bed835c748ed59eda3d17             0.0s
- => => naming to docker.io/library/event-ledger-account-service:latest                                             0.0s
- => => unpacking to docker.io/library/event-ledger-account-service:latest                                          0.4s
- => [account-service] resolving provenance for metadata file                                                       0.0s
- => [gateway-service internal] load build definition from Dockerfile                                               0.0s
- => => transferring dockerfile: 196B                                                                               0.0s
- => [gateway-service internal] load .dockerignore                                                                  0.0s
- => => transferring context: 2B                                                                                    0.0s
- => [gateway-service internal] load build context                                                                  2.4s
- => => transferring context: 84.88MB                                                                               2.4s
- => [gateway-service 3/3] COPY target/gateway-service-0.0.1-SNAPSHOT.jar app.jar                                   0.3s
- => [gateway-service] exporting to image                                                                           3.4s
- => => exporting layers                                                                                            2.7s
- => => exporting manifest sha256:8b5f3cc64201abe64b8012599c7cd3f620bad7be047f08697b8799d7a7dd041a                  0.0s
- => => exporting config sha256:beb03bdfb04bd78a29c37599b10166373021195319ce39cd2227c859d63be997                    0.0s
- => => exporting attestation manifest sha256:4a10d6db5886d52cc9264f3cfe4bacafb8b45b0b5e2a328790264ed640302b4d      0.1s
- => => exporting manifest list sha256:9fcee2c7dd831cdcded2afae546ac482b69972d32b830836c51e26a6e2e2fded             0.0s
- => => naming to docker.io/library/event-ledger-gateway-service:latest                                             0.0s
- => => unpacking to docker.io/library/event-ledger-gateway-service:latest                                          0.4s
- => [gateway-service] resolving provenance for metadata file                                                       0.0s
-[+] Running 6/6
- ✔ Network event-ledger-network  Created                                                                           0.1s
- ✔ Container jaeger              Started                                                                           1.0s
- ✔ Container prometheus          Started                                                                           1.0s
- ✔ Container account-service     Healthy                                                                          11.4s
- ✔ Container gateway-service     Started                                                                          11.5s
- ✔ Container grafana             Started                                                                           1.0s
-
-3. Verify Container Statuses
-To check the runtime health states and trace verification chains:
-
-docker compose ps
-
-PS C:\Users\raghu\IdeaProjects\event-ledger> docker compose ps
-time="2026-06-08T02:18:41-05:00" level=warning msg="C:\\Users\\raghu\\IdeaProjects\\event-ledger\\docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
-NAME              IMAGE                             COMMAND                  SERVICE           CREATED         STATUS                   PORTS
-account-service   event-ledger-account-service      "java -jar app.jar"      account-service   4 minutes ago   Up 4 minutes (healthy)   0.0.0.0:8081->8081/tcp
-gateway-service   event-ledger-gateway-service      "java -jar app.jar"      gateway-service   4 minutes ago   Up 4 minutes             0.0.0.0:8080->8080/tcp
-grafana           grafana/grafana:latest            "/run.sh"                grafana           4 minutes ago   Up 4 minutes             0.0.0.0:3000->3000/tcp
-jaeger            jaegertracing/all-in-one:latest   "/go/bin/all-in-one-…"   jaeger            4 minutes ago   Up 4 minutes             4317/tcp, 9411/tcp, 14250/tcp, 0.0.0.0:4318->4318/tcp, 14268/tcp, 0.0.0.0:16686->16686/tcp
-prometheus        prom/prometheus:latest            "/bin/prometheus --c…"   prometheus        4 minutes ago   Up 4 minutes             0.0.0.0:9090->9090/tcp
-
-
- **Accesing the swagger UI:
-http://localhost:8080/swagger-ui/index.html - for gateway service
-http://localhost:8081/swagger-ui/index.html - for account service**
-
-Accessing the Telemetry Dashboards
-Once all components display a status of healthy or running, generate some test data by making an API call through the gateway (e.g., http://localhost:8080/actuator/health). Then inspect the dashboards:
-
-1. Distributed Tracing in Jaeger
-URL: http://localhost:16686
-
-Usage: Select gateway-service from the Service dropdown on the left and click Find Traces. Click into a timeline to view end-to-end execution paths, span IDs, and propagation delays.
-
-2. Time-Series Metrics in Prometheus
-URL: http://localhost:9090
-
-Usage: Navigate to Status -> Targets. Both microservice instances must show a green UP status, confirming active metric polling.
-
-3. Monitoring Dashboards in Grafana
-URL: http://localhost:3000
-
-Credentials: Username: admin | Password: admin
-
-Configuration:
-
-Go to Connections -> Data Sources -> click Add data source.
-
-Select Prometheus and configure the Connection URL to: http://prometheus:9090.
-
-Scroll down and hit Save & test.
-
-Navigate to Dashboards -> New -> Import.
-
-Enter ID 4701 (JVM Micrometer Core) or 11378 (Spring Boot Microservices Dashboard) and click Load to initialize real-time graphs.
-
-🔧 Windows-Specific Troubleshooting
-Error: Mount /etc/prometheus/prometheus.yml: not a directory
-This error happens if the file prometheus.yml is missing or has a hidden .txt extension on Windows, prompting Docker to mistakenly generate an empty directory cache.
-
-Resolution:
-
-    1.Shut down the stack and clear structural volumes:
-
-        docker compose down -v
-
-    2. Delete the accidental directory named prometheus.yml in your file browser.
-
-    3. Force-create a clean file via PowerShell:
-            New-Item -ItemType File -Name "prometheus.yml"
-    4. Paste the standard scrape rules inside, save, and redeploy using :
-        docker compose up --build -d.
-
-Safe Shutdown Command
-To safely terminate the network, wipe temporary containers, and release allocated RAM blocks without deleting configuration assets:
-
-    docker compose down
-
-Example json log:
-{
-  "@timestamp": "2026-06-08T03:22:15.123-05:00",
-  "level": "INFO",
-  "thread_name": "http-nio-8080-exec-1",
-  "logger_name": "org.example.gatewayservice.service.EventService",
-  "message": "Processing financial event for account acc-001",
-  "traceId": "65cd1b74e61b369137ba931b25a36bc4",
-  "spanId": "31b25a36bc42b931",
-  "service": "gateway-service"
-}
-
-
+mvn clean package

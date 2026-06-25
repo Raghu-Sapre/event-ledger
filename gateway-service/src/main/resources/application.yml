@@ -57,14 +57,20 @@ management:
 resilience4j:
   retry:
     instances:
-      accountService:
-        max-attempts: 3
-        wait-duration: 500ms
-        # FIXED: Removed the nested 'interval-function' property block wrapper
-        enable-exponential-backoff: true
-        exponential-backoff-multiplier: 2
-        enable-randomized-wait: true
-        randomized-wait-factor: 0.5
-        retry-exceptions:
+      accountServiceRetry:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        enableRandomizedWait: true
+        randomizedWaitFactor: 0.5
+        retryExceptions:
           - org.springframework.web.client.ResourceAccessException
           - org.springframework.web.client.HttpServerErrorException
+
+resilience4j.bulkhead:
+  instances:
+    accountServiceBulkhead:
+      maxConcurrentCalls: 10
+      maxWaitDuration: 0 # Fail immediately if capacity is reached
+

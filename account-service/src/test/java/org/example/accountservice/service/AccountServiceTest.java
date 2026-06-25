@@ -143,4 +143,69 @@ class AccountServiceTest {
     verify(transactionRepository).save(any(AccountTransaction.class));
     verify(accountRepository).save(any(Account.class));
   }
+
+  @Test
+  void applyEvent_ShouldCorrectlyRecomputeBalance_WhenEventsArriveOutOfOrder() {
+    // 1. Arrange: Setup an account and transactions
+    String accId = "acc-001";
+    Instant t1 = Instant.parse("2026-06-08T09:00:00Z");
+    Instant t2 = Instant.parse("2026-06-08T10:00:00Z");
+
+    // Account state representing the account after it is created/saved
+    Account account = Account.builder().accountId(accId).balance(BigDecimal.ZERO).build();
+
+    AccountTransaction txA =
+        AccountTransaction.builder()
+            .eventId("evt-A")
+            .accountId(accId)
+            .amount(new BigDecimal("100.00"))
+            .type("CREDIT")
+            .eventTimestamp(t1)
+            .build();
+    AccountTransaction txB =
+        AccountTransaction.builder()
+            .eventId("evt-B")
+            .accountId(accId)
+            .amount(new BigDecimal("50.00"))
+            .type("CREDIT")
+            .eventTimestamp(t2)
+            .build();
+
+    // Mock atomic insertion returning 1 (success) for both calls
+    when(transactionRepository.insertIfNotExists(
+            anyString(), anyString(), any(BigDecimal.class), any(Instant.class)))
+        .thenReturn(1);
+
+    // Track the account retrieval: First call doesn't find it (triggers createNewAccount),
+    // Second call finds the existing account instance.
+    when(accountRepository.findByAccountIdWithLock(accId))
+        .thenReturn(Optional.empty()) // First call
+        .thenReturn(Optional.of(account)); // Second call
+
+    // Mock the stateful return of history query sequentially
+    when(transactionRepository.findByAccountIdOrderByEventTimestampAsc(accId))
+        .thenReturn(List.of(txB)) // After Event B is added (chronologically just B)
+        .thenReturn(List.of(txA, txB)); // After Event A is added (chronologically A then B)
+
+    // Capture saved objects cleanly
+    when(accountRepository.save(any(Account.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(transactionRepository.save(any(AccountTransaction.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    // 2. Act: Insert Event B (t2) first, then Event A (t1)
+    accountService.applyEvent(buildRequest("evt-B", accId, 50, t2));
+    Account finalAccount = accountService.applyEvent(buildRequest("evt-A", accId, 100, t1));
+
+    // 3. Assert: 100.00 + 50.00 = 150.00
+    assertNotNull(finalAccount);
+    assertEquals(new BigDecimal("150.00"), finalAccount.getBalance());
+  }
+
+  // Missing helper method to build the ApplyEventRequest
+  private ApplyEventRequest buildRequest(
+      String eventId, String accountId, double amount, Instant timestamp) {
+    return new ApplyEventRequest(
+        eventId, accountId, BigDecimal.valueOf(amount).setScale(2), "CREDIT", timestamp);
+  }
 }

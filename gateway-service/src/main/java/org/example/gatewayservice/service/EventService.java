@@ -1,5 +1,6 @@
 package org.example.gatewayservice.service;
 
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import java.util.List;
@@ -30,6 +31,7 @@ public class EventService {
   @Retry(name = "accountService")
   // 2. Trips open to protect the ecosystem if failure thresholds exceed 50%
   @CircuitBreaker(name = "accountService", fallbackMethod = "handleAccountServiceFailure")
+  @Bulkhead(name = "accountServiceBulkhead") // Add this
   public EventRecord processEvent(EventRequest request) {
 
     // Idempotency check: skip processing if already captured in our gateway ledger

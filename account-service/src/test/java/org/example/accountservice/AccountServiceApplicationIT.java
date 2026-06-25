@@ -87,4 +87,6 @@ class AccountServiceApplicationIT {
     assertEquals(HttpStatus.OK, balanceResponse.getStatusCode());
     assertEquals(160.0, balanceResponse.getBody().get("balance"));
   }
+
+
 }
