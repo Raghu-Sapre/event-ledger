@@ -108,9 +108,10 @@ Click into any trace block to see exactly how long the request spent inside the 
 
 2. Inspecting Performance Metrics (Prometheus & Grafana) Metrics track system performance, such as request counts, error rates, and JVM memory.
 3. Raw Metrics Data: You can view the real-time Prometheus string exposure lines directly via the actuator scrapers at http://localhost:8080/actuator/prometheus or http://localhost:8081/actuator/prometheus. 
-4. Visual Dashboards (Grafana):Open Grafana (http://localhost:3000) and log in (Default: admin / admin).
-5. Go to Connections -> Data Sources and add Prometheus with the URL http://prometheus:9090. 
-6. Click Save & Test.Go to Dashboards -> Import, enter ID 4701 (JVM Micrometer Core) or 11378 (Spring Boot Dashboard), and click Load to visualize real-time application behavior graphs.
+4. Visual Dashboards (Grafana):
+      Open Grafana (http://localhost:3000) and log in (Default: admin / admin). 
+      Go to Connections -> Data Sources and add Prometheus with the URL http://prometheus:9090. 
+      Click Save & Test.Go to Dashboards -> Import, enter ID 4701 (JVM Micrometer Core) or 11378 (Spring Boot Dashboard), and click Load to visualize real-time application behavior graphs.
 7. Checking Structured JSON Logs (Docker) Both microservices use structured Logstash JSON layout formatters that output straight to standard console pipes.
 8. To stream live logs from the cluster and watch transaction events or exceptions parse in real-time, execute:Bash
 
